@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Create Support Ticket - SupportDesk{% endblock %}
+
+{% block content %}
+<div style="max-width: 820px; margin: 0 auto;">
+  <div style="margin-bottom: 1.5rem;">
+    <a href="{{ url_for('employee.dashboard') }}" style="font-size: 0.88rem; color: var(--gray-500); display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 0.5rem;">
+      &larr; Back to Dashboard
+    </a>
+    <h1 style="font-size: 1.8rem; font-weight: 700; color: var(--gray-900);">Create Support Ticket</h1>
+    <p style="color: var(--gray-500); font-size: 0.92rem;">Submit an issue or IT service request. Our automated SLA engine assigns response deadlines based on priority.</p>
+  </div>
+
+  <div class="card">
+    <form method="POST" action="{{ url_for('employee.create_ticket') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Ticket Title & Live KB Suggestion -->
+      <div class="form-group">
+        <label class="form-label" for="ticket-title-input">Ticket Subject / Title *</label>
+        <input type="text" id="ticket-title-input" name="title" class="form-control" placeholder="e.g. VPN connection failing with error 800, Outlook calendar sync error" value="{{ form_data.get('title', '') }}" required autofocus>
+        <div class="form-text">Be specific. As you type, matching solutions from our Knowledge Base will appear below.</div>
+      </div>
+
+      <!-- Live KB Suggestion Container -->
+      <div id="kb-suggestions-box" style="display: none; margin-bottom: 1.25rem; background: var(--primary-light); border: 1px solid var(--primary-border); border-radius: var(--radius-md); padding: 1rem;">
+        <div style="font-weight: 600; font-size: 0.88rem; color: var(--primary); margin-bottom: 0.5rem;">
+          💡 Related Knowledge Base Guides Found:
+        </div>
+        <ul id="kb-suggestions-list" style="list-style: none; margin: 0; padding: 0;"></ul>
+      </div>
+
+      <!-- Category & Priority Row -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label" for="category_id">Category *</label>
+          <select id="category_id" name="category_id" class="form-select" required>
+            <option value="">-- Select Category --</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if form_data.get('category_id')|string == cat.id|string %}selected{% endif %}>
+                {{ cat.name }} (Default: {{ cat.default_priority }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="priority">Priority Level *</label>
+          <select id="priority" name="priority" class="form-select" required>
+            <option value="Low" {% if form_data.get('priority') == 'Low' %}selected{% endif %}>Low (Minor inconvenience / inquiry - 24h resp)</option>
+            <option value="Medium" {% if form_data.get('priority') == 'Medium' or not form_data.get('priority') %}selected{% endif %}>Medium (Standard issue - 8h resp)</option>
+            <option value="High" {% if form_data.get('priority') == 'High' %}selected{% endif %}>High (Important system degradation - 2h resp)</option>
+            <option value="Critical" {% if form_data.get('priority') == 'Critical' %}selected{% endif %}>Critical (Full outage / emergency - 1h resp)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label class="form-label" for="description">Detailed Description *</label>
+        <textarea id="description" name="description" class="form-control" rows="6" placeholder="Describe the problem, steps to reproduce, error codes, and what you have tried so far..." required>{{ form_data.get('description', '') }}</textarea>
+      </div>
+
+      <!-- Attachment Dropzone / File Upload -->
+      <div class="form-group">
+        <label class="form-label" for="ticket-attachment">Attach Screenshot or Document (Optional)</label>
+        <input type="file" id="ticket-attachment" name="attachment" class="form-control">
+        <div class="form-text">Supported: PNG, JPG, JPEG, PDF, DOCX, TXT, LOG, ZIP. Max file size: 16 MB.</div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <a href="{{ url_for('employee.dashboard') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-lg" style="padding-left: 2rem; padding-right: 2rem;">Submit Support Ticket &rarr;</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

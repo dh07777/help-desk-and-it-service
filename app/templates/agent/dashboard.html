@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Agent Workspace - SupportDesk{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--gray-900);">Support Agent Workspace</h1>
+    <p style="color: var(--gray-500); font-size: 0.92rem;">Assigned queue, SLA deadline timers, and active customer threads</p>
+  </div>
+  <a href="{{ url_for('tickets.list_tickets') }}" class="btn btn-secondary">Browse All Tickets Queue</a>
+</div>
+
+<!-- Workload Metrics -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-icon icon-indigo">📥</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ active_count }}</div>
+      <div class="metric-label">Active Assigned</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-emerald">🎯</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ resolved_today_count }}</div>
+      <div class="metric-label">Resolved Today</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-rose">⚠️</div>
+    <div class="metric-content">
+      <div class="metric-value" style="color: {% if overdue_count > 0 %}var(--danger){% else %}inherit{% endif %};">{{ overdue_count }}</div>
+      <div class="metric-label">SLA Overdue</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-amber">🚨</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ escalated_count }}</div>
+      <div class="metric-label">Escalations</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-indigo">⏱️</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ avg_res_time }}h</div>
+      <div class="metric-label">Avg Resolution Time</div>
+    </div>
+  </div>
+</div>
+
+<!-- Assigned Tickets Queue -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">My Assigned Tickets ({{ assigned_tickets|length }})</h3>
+    <span style="font-size: 0.85rem; color: var(--gray-500);">Sorted by recent activity</span>
+  </div>
+
+  {% if assigned_tickets %}
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Customer</th>
+            <th>Subject</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>SLA Deadline</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in assigned_tickets %}
+            <tr style="{% if t.is_overdue and t.status not in ('Resolved', 'Closed') %}background-color: #fff5f5;{% endif %}">
+              <td>
+                <a href="{{ url_for('tickets.view_ticket', ticket_id=t.id) }}" style="font-weight: 700;">{{ t.ticket_number }}</a>
+              </td>
+              <td>
+                <div style="font-weight: 500;">{{ t.creator.full_name }}</div>
+                <div style="font-size: 0.75rem; color: var(--gray-400);">{{ t.creator.department or 'General' }}</div>
+              </td>
+              <td>
+                <div style="font-weight: 600;">{{ t.title }}</div>
+                {% if t.is_escalated %}
+                  <span class="badge badge-escalated" style="font-size: 0.7rem;">⚠️ Escalated (Tier {{ t.escalation_level }})</span>
+                {% endif %}
+              </td>
+              <td><span class="badge {{ t.priority_badge_class }}">{{ t.priority }}</span></td>
+              <td><span class="badge {{ t.status_badge_class }}">{{ t.status }}</span></td>
+              <td>
+                {% if t.status in ('Resolved', 'Closed') %}
+                  <span class="badge badge-resolved">Resolved</span>
+                {% elif t.is_resolution_overdue() %}
+                  <span class="badge badge-overdue">Resolution Overdue</span>
+                {% elif t.resolution_due_at %}
+                  <span style="font-size: 0.82rem; font-weight: 500;">Due {{ t.resolution_due_at|datetimeformat('%b %d, %I:%M %p') }}</span>
+                {% else %}
+                  <span style="color: var(--gray-400);">-</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('tickets.view_ticket', ticket_id=t.id) }}" class="btn btn-sm btn-primary">Open & Reply &rarr;</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--gray-500);">
+      No tickets currently assigned to you. Check the unassigned queue below.
+    </div>
+  {% endif %}
+</div>
+
+<!-- Unassigned Queue -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Unassigned Incoming Queue ({{ unassigned_tickets|length }})</h3>
+    <span class="badge badge-open">Waiting for pickup</span>
+  </div>
+
+  {% if unassigned_tickets %}
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Customer</th>
+            <th>Subject</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in unassigned_tickets %}
+            <tr>
+              <td>
+                <a href="{{ url_for('tickets.view_ticket', ticket_id=t.id) }}" style="font-weight: 700;">{{ t.ticket_number }}</a>
+              </td>
+              <td>{{ t.creator.full_name }}</td>
+              <td>
+                <div style="font-weight: 600;">{{ t.title }}</div>
+              </td>
+              <td>{{ t.category.name if t.category else 'General' }}</td>
+              <td><span class="badge {{ t.priority_badge_class }}">{{ t.priority }}</span></td>
+              <td style="color: var(--gray-500); font-size: 0.8rem;">{{ t.created_at|timeago }}</td>
+              <td>
+                <form method="POST" action="{{ url_for('tickets.assign_ticket', ticket_id=t.id) }}" style="display: inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="agent_id" value="{{ user.id }}">
+                  <input type="hidden" name="notes" value="Picked up from unassigned queue">
+                  <button type="submit" class="btn btn-sm btn-success">Claim Ticket</button>
+                </form>
+                <a href="{{ url_for('tickets.view_ticket', ticket_id=t.id) }}" class="btn btn-sm btn-secondary" style="margin-left: 0.3rem;">Review</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--gray-500);">
+      Unassigned queue is clear! All tickets have been picked up.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - SupportDesk{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="avatar-circle" style="width: 58px; height: 58px; font-size: 1.4rem;">{{ user.initials }}</div>
+    <div>
+      <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--gray-900);">{{ user.full_name }}</h1>
+      <div style="color: var(--gray-500); font-size: 0.9rem;">
+        <span class="badge badge-medium">{{ user.role.name|upper }}</span>
+        <span style="margin: 0 0.4rem;">&bull;</span>
+        <span>{{ user.department or 'General' }}</span>
+        <span style="margin: 0 0.4rem;">&bull;</span>
+        <span>Member since {{ user.created_at|datetimeformat('%B %Y') }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Profile Info Form -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Profile Information</h3>
+      </div>
+      <form method="POST" action="{{ url_for('auth.profile') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_info">
+
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" class="form-control" value="{{ user.email }}" disabled style="background: var(--gray-100); color: var(--gray-500);">
+          <div class="form-text">Email address is managed by corporate identity.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="full_name">Full Name</label>
+          <input type="text" id="full_name" name="full_name" class="form-control" value="{{ user.full_name }}" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="department">Department</label>
+          <input type="text" id="department" name="department" class="form-control" value="{{ user.department or '' }}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="phone">Phone Number</label>
+          <input type="tel" id="phone" name="phone" class="form-control" value="{{ user.phone or '' }}">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Profile</button>
+      </form>
+    </div>
+
+    <!-- Change Password Form -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Security & Password</h3>
+      </div>
+      <form method="POST" action="{{ url_for('auth.profile') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="change_password">
+
+        <div class="form-group">
+          <label class="form-label" for="current_password">Current Password</label>
+          <input type="password" id="current_password" name="current_password" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="new_password">New Password</label>
+          <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Min. 6 characters" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm_password">Confirm New Password</label>
+          <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-secondary">Update Password</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

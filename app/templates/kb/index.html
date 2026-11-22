@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Knowledge Base - SupportDesk{% endblock %}
+
+{% block content %}
+<div style="text-align: center; max-width: 720px; margin: 1rem auto 2.5rem;">
+  <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--gray-900); letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+    Knowledge Base & Self-Service
+  </h1>
+  <p style="color: var(--gray-600); font-size: 1.05rem; margin-bottom: 1.75rem;">
+    Search our collection of IT guides, setup manuals, and troubleshooting documentation
+  </p>
+
+  <form method="GET" action="{{ url_for('main.kb_index') }}" style="display: flex; gap: 0.5rem; background: var(--white); padding: 0.4rem; border-radius: var(--radius-lg); border: 1px solid var(--gray-300); box-shadow: var(--shadow-md);">
+    <input type="text" name="q" class="form-control" placeholder="Search keywords, errors, software..." value="{{ search_query }}" style="border: none; box-shadow: none; font-size: 1rem;">
+    {% if selected_category_id %}
+      <input type="hidden" name="category" value="{{ selected_category_id }}">
+    {% endif %}
+    <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.4rem;">Search</button>
+  </form>
+</div>
+
+<!-- Category Filter Pills -->
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; margin-bottom: 2rem;">
+  <a href="{{ url_for('main.kb_index', q=search_query) }}" class="btn btn-sm {% if not selected_category_id %}btn-primary{% else %}btn-secondary{% endif %}">
+    All Categories
+  </a>
+  {% for cat in categories %}
+    <a href="{{ url_for('main.kb_index', category=cat.id, q=search_query) }}" class="btn btn-sm {% if selected_category_id == cat.id %}btn-primary{% else %}btn-secondary{% endif %}">
+      {{ cat.name }}
+    </a>
+  {% endfor %}
+</div>
+
+<!-- Articles Grid -->
+{% if articles %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+    {% for art in articles %}
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0; transition: transform 0.15s, box-shadow 0.15s;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+            <span class="badge badge-medium">{{ art.category.name if art.category else 'General' }}</span>
+            <span style="font-size: 0.75rem; color: var(--gray-400);">{{ art.updated_at|timeago }}</span>
+          </div>
+
+          <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.6rem;">
+            <a href="{{ url_for('main.kb_article', slug=art.slug) }}" style="color: var(--gray-900);">{{ art.title }}</a>
+          </h3>
+
+          <p style="font-size: 0.88rem; color: var(--gray-600); line-height: 1.6; margin-bottom: 1rem;">
+            {{ art.content[:140] }}...
+          </p>
+        </div>
+
+        <div style="border-top: 1px solid var(--gray-100); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--gray-500);">
+          <span>👁️ {{ art.views_count }} views</span>
+          <span style="color: var(--success); font-weight: 600;">👍 {{ art.helpful_count }} helpful</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="text-align: center; padding: 3rem 1rem;">
+    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📖</div>
+    <h3 style="font-weight: 600; margin-bottom: 0.4rem;">No articles found</h3>
+    <p style="color: var(--gray-500); font-size: 0.9rem; margin-bottom: 1.25rem;">
+      Could not find any guides matching your search criteria.
+    </p>
+    <a href="{{ url_for('main.kb_index') }}" class="btn btn-secondary">Clear Search & Categories</a>
+  </div>
+{% endif %}
+
+<!-- Open Ticket Prompt -->
+<div class="card" style="margin-top: 3rem; background: linear-gradient(135deg, #eef2ff, #f8fafc); border: 1px solid var(--primary-border); text-align: center; padding: 2rem;">
+  <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.4rem;">Can't find the solution you need?</h3>
+  <p style="color: var(--gray-600); font-size: 0.92rem; margin-bottom: 1rem;">Our dedicated IT support team is standing by to resolve your issues according to SLA guidelines.</p>
+  {% if current_user %}
+    <a href="{{ url_for('employee.create_ticket') }}" class="btn btn-primary">+ Open a Support Ticket &rarr;</a>
+  {% else %}
+    <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Sign In to Open a Ticket &rarr;</a>
+  {% endif %}
+</div>
+{% endblock %}

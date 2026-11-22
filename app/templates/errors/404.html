@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}404 Page Not Found - SupportDesk{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 550px; margin: 4rem auto; text-align: center; padding: 3rem 2rem;">
+  <div style="font-size: 3.5rem; margin-bottom: 1rem;">🔍</div>
+  <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--gray-900); margin-bottom: 0.5rem;">404 - Not Found</h1>
+  <p style="color: var(--gray-600); font-size: 0.95rem; margin-bottom: 1.5rem;">
+    The requested ticket, article, or page does not exist or may have been relocated.
+  </p>
+  <a href="{{ url_for('main.index') }}" class="btn btn-primary">Return to Home</a>
+</div>
+{% endblock %}

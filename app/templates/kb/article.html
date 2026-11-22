@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} - Knowledge Base{% endblock %}
+
+{% block content %}
+<div style="max-width: 860px; margin: 0 auto;">
+  <!-- Breadcrumb -->
+  <div style="margin-bottom: 1.25rem;">
+    <a href="{{ url_for('main.kb_index') }}" style="font-size: 0.88rem; color: var(--gray-500); display: inline-flex; align-items: center; gap: 0.3rem;">
+      &larr; Back to Knowledge Base
+    </a>
+  </div>
+
+  <!-- Article Container -->
+  <article class="card" style="padding: 2.25rem;">
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+      <span class="badge badge-medium">{{ article.category.name if article.category else 'General' }}</span>
+    </div>
+
+    <h1 style="font-size: 2rem; font-weight: 800; color: var(--gray-900); letter-spacing: -0.02em; margin-bottom: 0.75rem; line-height: 1.3;">
+      {{ article.title }}
+    </h1>
+
+    <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: var(--gray-400); margin-bottom: 2rem; border-bottom: 1px solid var(--gray-100); padding-bottom: 1rem;">
+      <span>By <strong>{{ article.author.full_name if article.author else 'SupportDesk Team' }}</strong></span>
+      <span>&bull;</span>
+      <span>Updated {{ article.updated_at|datetimeformat('%B %d, %Y') }}</span>
+      <span>&bull;</span>
+      <span>👁️ {{ article.views_count }} views</span>
+    </div>
+
+    <!-- Article Content -->
+    <div style="font-size: 1rem; color: var(--gray-800); line-height: 1.8; white-space: pre-wrap; margin-bottom: 2.5rem;">
+      {{ article.content }}
+    </div>
+
+    <!-- Interactive Helpfulness Voting Widget -->
+    <div style="border-top: 1px solid var(--gray-200); padding-top: 1.5rem; background: var(--gray-50); padding: 1.25rem; border-radius: var(--radius-md); text-align: center;">
+      <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--gray-800); margin-bottom: 0.4rem;">
+        Was this article helpful?
+      </h4>
+      <p style="font-size: 0.82rem; color: var(--gray-500); margin-bottom: 1rem;">
+        Help us improve our documentation by rating this solution
+      </p>
+
+      <div class="kb-feedback-container" style="display: flex; justify-content: center; gap: 1rem;">
+        <button class="btn btn-secondary btn-sm kb-vote-btn" data-article-id="{{ article.id }}" data-vote="helpful">
+          👍 Yes, this helped (<span id="helpful-count-{{ article.id }}">{{ article.helpful_count }}</span>)
+        </button>
+        <button class="btn btn-secondary btn-sm kb-vote-btn" data-article-id="{{ article.id }}" data-vote="not_helpful">
+          👎 No, needs improvement (<span id="not-helpful-count-{{ article.id }}">{{ article.not_helpful_count }}</span>)
+        </button>
+      </div>
+    </div>
+  </article>
+
+  <!-- Related Guides Section -->
+  {% if related_articles %}
+    <div class="card" style="margin-top: 1.5rem;">
+      <h3 class="card-title" style="margin-bottom: 1rem;">Related Guides in {{ article.category.name if article.category else 'this category' }}</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        {% for rel in related_articles %}
+          <div style="padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50);">
+            <h4 style="font-size: 0.92rem; font-weight: 600;">
+              <a href="{{ url_for('main.kb_article', slug=rel.slug) }}">{{ rel.title }}</a>
+            </h4>
+            <div style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">
+              👍 {{ rel.helpful_count }} helpful &bull; {{ rel.views_count }} views
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Need more help CTA -->
+  <div style="text-align: center; margin-top: 2rem; padding: 1.5rem; background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
+    <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem;">Still encountering issues?</h3>
+    <p style="font-size: 0.88rem; color: var(--gray-600); margin-bottom: 1rem;">Log a ticket with our support technicians for personalized investigation.</p>
+    {% if current_user %}
+      <a href="{{ url_for('employee.create_ticket') }}" class="btn btn-primary">+ Create Support Ticket &rarr;</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Sign In to Create Ticket &rarr;</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

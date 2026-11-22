@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}500 Server Error - SupportDesk{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 550px; margin: 4rem auto; text-align: center; padding: 3rem 2rem;">
+  <div style="font-size: 3.5rem; margin-bottom: 1rem;">💥</div>
+  <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--gray-900); margin-bottom: 0.5rem;">500 - Internal Server Error</h1>
+  <p style="color: var(--gray-600); font-size: 0.95rem; margin-bottom: 1.5rem;">
+    An internal system error occurred. Our engineers and automated health monitoring have been notified.
+  </p>
+  <a href="{{ url_for('main.index') }}" class="btn btn-primary">Return to Home</a>
+</div>
+{% endblock %}

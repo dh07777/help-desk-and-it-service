@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Control Center - SupportDesk{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--gray-900);">Administrator Control Center</h1>
+    <p style="color: var(--gray-500); font-size: 0.92rem;">Platform-wide SLA compliance, ticket distribution, and agent performance</p>
+  </div>
+  <div style="display: flex; gap: 0.5rem;">
+    <a href="{{ url_for('admin.reports') }}" class="btn btn-secondary">📊 Detailed Reports & CSV</a>
+    <a href="{{ url_for('tickets.list_tickets') }}" class="btn btn-primary">Manage All Tickets</a>
+  </div>
+</div>
+
+<!-- Primary System KPIs -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-icon icon-indigo">📊</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ total_tickets }}</div>
+      <div class="metric-label">Total Tickets</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-emerald">🏆</div>
+    <div class="metric-content">
+      <div class="metric-value" style="color: {% if sla_stats.compliance_rate >= 90 %}var(--success){% else %}var(--warning){% endif %};">{{ sla_stats.compliance_rate }}%</div>
+      <div class="metric-label">SLA Compliance Rate</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-rose">⚠️</div>
+    <div class="metric-content">
+      <div class="metric-value" style="color: {% if sla_stats.overdue_count > 0 %}var(--danger){% else %}inherit{% endif %};">{{ sla_stats.overdue_count }}</div>
+      <div class="metric-label">SLA Overdue Tickets</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-amber">🚨</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ escalated_tickets }}</div>
+      <div class="metric-label">Escalated Tickets</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-indigo">👥</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ agents_count }} / {{ total_users }}</div>
+      <div class="metric-label">Agents / Total Users</div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 1: Volume Trends & Status Breakdown -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title">14-Day Ticket Inflow vs Resolution Trend</h3>
+      <span style="font-size: 0.8rem; color: var(--gray-500);">Live SQLite telemetry</span>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="chart-trends"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title">Tickets by Status</h3>
+    </div>
+    <div style="height: 280px; position: relative;">
+      <canvas id="chart-status"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row 2: Priority & Category & Agent Performance -->
+<div style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title">Tickets by Priority</h3>
+    </div>
+    <div style="height: 250px; position: relative;">
+      <canvas id="chart-priority"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title">Tickets by Category</h3>
+    </div>
+    <div style="height: 250px; position: relative;">
+      <canvas id="chart-category"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title">Agent Workload (Assigned vs Resolved)</h3>
+    </div>
+    <div style="height: 250px; position: relative;">
+      <canvas id="chart-agents"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Tickets -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Recent Tickets Activity</h3>
+    <a href="{{ url_for('tickets.list_tickets') }}" class="btn btn-sm btn-secondary">View All Tickets &rarr;</a>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Ticket Number</th>
+          <th>Subject</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Creator</th>
+          <th>Assignee</th>
+          <th>SLA Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in recent_tickets %}
+          <tr>
+            <td><a href="{{ url_for('tickets.view_ticket', ticket_id=t.id) }}" style="font-weight: 700;">{{ t.ticket_number }}</a></td>
+            <td>
+              <div style="font-weight: 600;">{{ t.title }}</div>
+              {% if t.is_escalated %}
+                <span class="badge badge-escalated" style="font-size: 0.7rem;">⚠️ Escalated (Tier {{ t.escalation_level }})</span>
+              {% endif %}
+            </td>
+            <td>{{ t.category.name if t.category else 'General' }}</td>
+            <td><span class="badge {{ t.priority_badge_class }}">{{ t.priority }}</span></td>
+            <td><span class="badge {{ t.status_badge_class }}">{{ t.status }}</span></td>
+            <td>{{ t.creator.full_name }}</td>
+            <td>{{ t.assigned_agent.full_name if t.assigned_agent else 'Unassigned' }}</td>
+            <td>
+              {% if t.is_overdue and t.status not in ('Resolved', 'Closed') %}
+                <span class="badge badge-overdue">Overdue</span>
+              {% elif t.status in ('Resolved', 'Closed') %}
+                <span class="badge badge-resolved">Resolved</span>
+              {% else %}
+                <span class="badge badge-sla-ok">On Track</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('tickets.view_ticket', ticket_id=t.id) }}" class="btn btn-sm btn-secondary">Details</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

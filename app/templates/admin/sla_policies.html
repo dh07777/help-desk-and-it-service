@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}SLA Policy Engine - SupportDesk{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+  <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--gray-900);">Service Level Agreement (SLA) Policies</h1>
+  <p style="color: var(--gray-500); font-size: 0.92rem;">Define strict response and resolution target deadlines per ticket priority</p>
+</div>
+
+<!-- SLA Metrics Overview -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-icon icon-emerald">🎯</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ sla_metrics.compliance_rate }}%</div>
+      <div class="metric-label">Resolution SLA Compliance</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-indigo">⚡</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ sla_metrics.avg_response_time_min }}m</div>
+      <div class="metric-label">Average Response Time</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-amber">⏳</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ sla_metrics.avg_resolution_time_hr }}h</div>
+      <div class="metric-label">Average Resolution Time</div>
+    </div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-icon icon-rose">⚠️</div>
+    <div class="metric-content">
+      <div class="metric-value">{{ sla_metrics.breached_count }}</div>
+      <div class="metric-label">Total Breached Tickets</div>
+    </div>
+  </div>
+</div>
+
+<!-- SLA Policies Table -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Configured Priority Deadlines</h3>
+    <span style="font-size: 0.85rem; color: var(--gray-500);">Auto-calculated upon ticket creation and priority shifts</span>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Priority Level</th>
+          <th>Max First Response Time</th>
+          <th>Max Resolution Time</th>
+          <th>Policy Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pol in policies %}
+          <tr>
+            <td>
+              <span class="badge {% if pol.priority == 'Critical' %}badge-critical{% elif pol.priority == 'High' %}badge-high{% elif pol.priority == 'Low' %}badge-low{% else %}badge-medium{% endif %}" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                {{ pol.priority }}
+              </span>
+            </td>
+            <td>
+              <strong style="color: var(--primary);">{{ pol.response_time_hours }} hours</strong>
+              {% if pol.response_time_hours < 1 %}
+                <span style="color: var(--gray-400); font-size: 0.8rem;">({{ (pol.response_time_hours * 60)|int }} minutes)</span>
+              {% endif %}
+            </td>
+            <td>
+              <strong style="color: var(--gray-900);">{{ pol.resolution_time_hours }} hours</strong>
+              <span style="color: var(--gray-400); font-size: 0.8rem;">({{ (pol.resolution_time_hours / 24)|round(1) }} days)</span>
+            </td>
+            <td>{{ pol.description or 'Standard SLA target' }}</td>
+            <td>
+              <button class="btn btn-sm btn-secondary" data-toggle="modal" data-target="#edit-sla-{{ pol.id }}">Edit Targets</button>
+            </td>
+          </tr>
+
+          <!-- Edit Modal -->
+          <div class="modal-overlay" id="edit-sla-{{ pol.id }}">
+            <div class="modal-box">
+              <div class="modal-header">
+                <h3 style="font-size: 1.15rem; font-weight: 600;">Edit SLA Targets: {{ pol.priority }}</h3>
+                <button class="alert-close" data-dismiss="modal">&times;</button>
+              </div>
+              <form method="POST" action="{{ url_for('admin.sla_policies') }}">
+                <div class="modal-body">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="policy_id" value="{{ pol.id }}">
+
+                  <div class="form-group">
+                    <label class="form-label">Response Time Limit (in hours) *</label>
+                    <input type="number" step="0.1" name="response_time_hours" class="form-control" value="{{ pol.response_time_hours }}" required>
+                    <div class="form-text">e.g. 1.0 = 1 hour, 0.5 = 30 minutes</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Resolution Time Limit (in hours) *</label>
+                    <input type="number" step="0.5" name="resolution_time_hours" class="form-control" value="{{ pol.resolution_time_hours }}" required>
+                    <div class="form-text">e.g. 4.0 = 4 hours, 24.0 = 1 full day</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Policy Guidelines / Notes</label>
+                    <input type="text" name="description" class="form-control" value="{{ pol.description or '' }}">
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Update Policy</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

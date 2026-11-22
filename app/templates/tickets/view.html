@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket {{ ticket.ticket_number }}: {{ ticket.title }} - SupportDesk{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb & Top Bar -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+  <div>
+    <a href="{{ url_for('tickets.list_tickets') }}" style="font-size: 0.88rem; color: var(--gray-500); display: inline-flex; align-items: center; gap: 0.3rem;">
+      &larr; Back to Ticket Queue
+    </a>
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.3rem;">
+      <h1 style="font-size: 1.7rem; font-weight: 700; color: var(--gray-900);">{{ ticket.ticket_number }}</h1>
+      <span class="badge {{ ticket.priority_badge_class }}" style="font-size: 0.82rem;">{{ ticket.priority }}</span>
+      <span class="badge {{ ticket.status_badge_class }}" style="font-size: 0.82rem;">{{ ticket.status }}</span>
+      {% if ticket.is_escalated %}
+        <span class="badge badge-escalated" style="font-size: 0.82rem;">🚨 Escalated (Tier {{ ticket.escalation_level }})</span>
+      {% endif %}
+      {% if ticket.is_overdue and ticket.status not in ('Resolved', 'Closed') %}
+        <span class="badge badge-overdue" style="font-size: 0.82rem;">⚠️ SLA Overdue</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 0.5rem; align-items: center;">
+    {% if ticket.status in ('Resolved', 'Closed') and (user.id == ticket.creator_id or user.is_agent or user.is_admin) %}
+      <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#reopen-modal">🔄 Reopen Ticket</button>
+    {% endif %}
+    {% if not user.is_employee and not ticket.is_escalated %}
+      <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#escalate-modal">🚨 Escalate</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Two-Column Layout -->
+<div class="ticket-layout">
+  
+  <!-- LEFT COLUMN: Main Ticket Content & Conversation -->
+  <div>
+    <!-- Ticket Original Post Card -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; border-bottom: 1px solid var(--gray-100); padding-bottom: 0.75rem;">
+        <div>
+          <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem;">{{ ticket.title }}</h2>
+          <div style="font-size: 0.82rem; color: var(--gray-500); display: flex; align-items: center; gap: 0.6rem;">
+            <span>Category: <strong>{{ ticket.category.name if ticket.category else 'General' }}</strong></span>
+            <span>&bull;</span>
+            <span>Submitted by <strong>{{ ticket.creator.full_name }}</strong> ({{ ticket.creator.department or 'General' }})</span>
+            <span>&bull;</span>
+            <span>{{ ticket.created_at|datetimeformat('%b %d, %Y %I:%M %p') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description Body -->
+      <div style="font-size: 0.95rem; color: var(--gray-800); line-height: 1.7; white-space: pre-wrap; margin-bottom: 1.25rem;">
+        {{ ticket.description }}
+      </div>
+
+      <!-- Attachments Section -->
+      {% if ticket.attachments %}
+        <div style="border-top: 1px dashed var(--gray-200); padding-top: 1rem; margin-top: 1rem;">
+          <h4 style="font-size: 0.88rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem;">
+            📎 Attached Files ({{ ticket.attachments|length }})
+          </h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.6rem;">
+            {% for att in ticket.attachments %}
+              <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--gray-50); border: 1px solid var(--gray-200); padding: 0.4rem 0.75rem; border-radius: var(--radius-md); font-size: 0.82rem;">
+                <span>{% if att.is_image %}🖼️{% else %}📄{% endif %}</span>
+                <span style="font-weight: 500; color: var(--gray-800);">{{ att.original_filename }}</span>
+                <span style="color: var(--gray-400); font-size: 0.75rem;">({{ att.file_size_display }})</span>
+                <a href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=att.id) }}" class="btn btn-sm btn-secondary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">Download</a>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Feedback Section (Customer Satisfaction) -->
+    {% if ticket.status in ('Resolved', 'Closed') %}
+      <div class="card" style="border-left: 4px solid var(--success);">
+        <h3 class="card-title" style="margin-bottom: 0.5rem;">Customer Satisfaction & Feedback</h3>
+        
+        {% if ticket.feedback %}
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <div style="color: #fbbf24; font-size: 1.25rem;">
+              {% for i in range(ticket.feedback.rating) %}★{% endfor %}
+              {% for i in range(5 - ticket.feedback.rating) %}☆{% endfor %}
+            </div>
+            <span style="font-weight: 600;">Rated {{ ticket.feedback.rating }} of 5 stars</span>
+            <span style="color: var(--gray-400); font-size: 0.8rem;">Submitted {{ ticket.feedback.created_at|timeago }}</span>
+          </div>
+          {% if ticket.feedback.comment %}
+            <p style="font-size: 0.9rem; color: var(--gray-700); background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--gray-200);">
+              "{{ ticket.feedback.comment }}"
+            </p>
+          {% endif %}
+        {% elif user.id == ticket.creator_id %}
+          <p style="font-size: 0.88rem; color: var(--gray-600); margin-bottom: 0.75rem;">
+            This ticket has been marked as resolved. How satisfied are you with our assistance?
+          </p>
+          <form method="POST" action="{{ url_for('tickets.submit_feedback', ticket_id=ticket.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+              <label class="form-label">Satisfaction Rating (1 to 5 Stars) *</label>
+              <div class="star-rating">
+                <input type="radio" id="star5" name="rating" value="5" required><label for="star5" title="5 stars">★</label>
+                <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="4 stars">★</label>
+                <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="3 stars">★</label>
+                <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="2 stars">★</label>
+                <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="1 star">★</label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Comments or Feedback (Optional)</label>
+              <textarea name="comment" class="form-control" rows="2" placeholder="Let us know what went well or how we can improve..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-sm">Submit Feedback</button>
+          </form>
+        {% else %}
+          <div style="color: var(--gray-500); font-size: 0.88rem; font-style: italic;">
+            Waiting for customer satisfaction rating...
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <!-- Conversation Timeline -->
+    <div style="margin: 2rem 0 1rem;">
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.5rem;">
+        Conversation History ({{ comments|length }})
+      </h3>
+    </div>
+
+    <div class="timeline">
+      {% for c in comments %}
+        <div class="comment-card {% if c.is_internal %}internal{% endif %}">
+          {% if c.is_internal %}
+            <div style="display: flex; align-items: center; gap: 0.4rem; color: #b45309; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.5rem;">
+              <span>🔒 Private Internal Note</span>
+              <span style="font-weight: 400; text-transform: none; color: var(--gray-600);">(Visible only to agents & admins)</span>
+            </div>
+          {% endif %}
+
+          <div class="comment-header">
+            <div class="comment-author">
+              <div class="avatar-circle" style="width: 28px; height: 28px; font-size: 0.75rem;">{{ c.user.initials }}</div>
+              <div>
+                <span>{{ c.user.full_name }}</span>
+                <span class="badge {% if c.user.is_admin %}badge-critical{% elif c.user.is_agent %}badge-inprogress{% else %}badge-low{% endif %}" style="font-size: 0.65rem; margin-left: 0.3rem;">
+                  {{ c.user.role.name|upper }}
+                </span>
+              </div>
+            </div>
+            <div class="comment-time">{{ c.created_at|datetimeformat('%b %d, %I:%M %p') }} ({{ c.created_at|timeago }})</div>
+          </div>
+
+          <div class="comment-body">{{ c.content }}</div>
+
+          {% if c.attachments %}
+            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              {% for att in c.attachments %}
+                <div style="display: flex; align-items: center; gap: 0.4rem; background: var(--white); border: 1px solid var(--gray-200); padding: 0.3rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.78rem;">
+                  <span>📎</span>
+                  <span>{{ att.original_filename }}</span>
+                  <a href="{{ url_for('tickets.download_attachment', ticket_id=ticket.id, attachment_id=att.id) }}" class="btn btn-sm btn-secondary" style="padding: 0.1rem 0.4rem; font-size: 0.7rem;">Download</a>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Reply / Comment Box -->
+    <div class="card" style="margin-top: 1.5rem;">
+      <h3 class="card-title" style="margin-bottom: 1rem;">Post a Reply</h3>
+
+      <form method="POST" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <textarea name="content" class="form-control" rows="4" placeholder="Type your response here..." required></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <!-- File attachment -->
+            <div>
+              <label for="comment-file" style="font-size: 0.85rem; color: var(--gray-600); cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                📎 <span>Attach file</span>
+              </label>
+              <input type="file" id="comment-file" name="attachment" style="display: none;" onchange="document.getElementById('file-chosen').textContent = this.files[0] ? this.files[0].name : '';">
+              <span id="file-chosen" style="font-size: 0.8rem; color: var(--primary); margin-left: 0.4rem;"></span>
+            </div>
+
+            <!-- Staff Internal Note Checkbox -->
+            {% if not user.is_employee %}
+              <div style="display: flex; align-items: center; gap: 0.4rem; background: #fef3c7; padding: 0.3rem 0.6rem; border-radius: var(--radius-sm); border: 1px solid #fde68a;">
+                <input type="checkbox" id="is_internal" name="is_internal" value="1">
+                <label for="is_internal" style="font-size: 0.82rem; font-weight: 600; color: #92400e; cursor: pointer;">
+                  🔒 Internal Staff Note
+                </label>
+              </div>
+            {% endif %}
+          </div>
+
+          <button type="submit" class="btn btn-primary">Post Reply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: Metadata & Workflow Controls -->
+  <div>
+    <!-- Ticket Meta Card -->
+    <div class="card">
+      <h3 class="card-title" style="margin-bottom: 0.85rem;">Ticket Details</h3>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.88rem;">
+        <div>
+          <span style="color: var(--gray-500); display: block; font-size: 0.75rem;">CATEGORY</span>
+          <strong style="color: var(--gray-800);">{{ ticket.category.name if ticket.category else 'General' }}</strong>
+        </div>
+
+        <div>
+          <span style="color: var(--gray-500); display: block; font-size: 0.75rem;">CREATED BY</span>
+          <strong style="color: var(--gray-800);">{{ ticket.creator.full_name }}</strong>
+          <div style="color: var(--gray-400); font-size: 0.75rem;">{{ ticket.creator.email }}</div>
+          <div style="color: var(--gray-400); font-size: 0.75rem;">{{ ticket.creator.department or 'General' }} &bull; {{ ticket.creator.phone or '' }}</div>
+        </div>
+
+        <div>
+          <span style="color: var(--gray-500); display: block; font-size: 0.75rem;">CREATED AT</span>
+          <span>{{ ticket.created_at|datetimeformat }}</span>
+        </div>
+
+        <!-- SLA Deadlines -->
+        <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--gray-200);">
+          <div style="font-weight: 600; font-size: 0.8rem; margin-bottom: 0.4rem; color: var(--gray-700);">SLA DEADLINE TELEMETRY</div>
+          
+          <div style="margin-bottom: 0.5rem;">
+            <div style="font-size: 0.75rem; color: var(--gray-500);">First Response:</div>
+            {% if ticket.first_responded_at %}
+              <div style="color: var(--success); font-weight: 600; font-size: 0.82rem;">
+                ✓ Responded {{ ticket.first_responded_at|datetimeformat('%b %d, %I:%M %p') }}
+              </div>
+            {% elif ticket.is_response_overdue() %}
+              <div style="color: var(--danger); font-weight: 600; font-size: 0.82rem;">
+                ⚠️ Overdue (Target: {{ ticket.response_due_at|datetimeformat('%I:%M %p') }})
+              </div>
+            {% elif ticket.response_due_at %}
+              <div style="font-weight: 500; font-size: 0.82rem;">
+                Due {{ ticket.response_due_at|datetimeformat('%b %d, %I:%M %p') }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div>
+            <div style="font-size: 0.75rem; color: var(--gray-500);">Resolution Target:</div>
+            {% if ticket.status in ('Resolved', 'Closed') and ticket.resolved_at %}
+              <div style="color: var(--success); font-weight: 600; font-size: 0.82rem;">
+                ✓ Resolved {{ ticket.resolved_at|datetimeformat('%b %d, %I:%M %p') }}
+              </div>
+            {% elif ticket.is_resolution_overdue() %}
+              <div style="color: var(--danger); font-weight: 600; font-size: 0.82rem;">
+                ⚠️ Overdue (Target: {{ ticket.resolution_due_at|datetimeformat('%b %d, %I:%M %p') }})
+              </div>
+            {% elif ticket.resolution_due_at %}
+              <div style="font-weight: 500; font-size: 0.82rem;">
+                Due {{ ticket.resolution_due_at|datetimeformat('%b %d, %I:%M %p') }}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if ticket.is_escalated %}
+          <div style="background: #fef2f2; border: 1px solid #fca5a5; padding: 0.75rem; border-radius: var(--radius-sm);">
+            <div style="font-weight: 700; color: #dc2626; font-size: 0.82rem;">⚠️ TIER {{ ticket.escalation_level }} ESCALATION</div>
+            <div style="font-size: 0.8rem; color: #991b1b; margin-top: 0.2rem;">{{ ticket.escalation_reason }}</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Status Progression Controls -->
+    <div class="card">
+      <h3 class="card-title" style="margin-bottom: 0.85rem;">Status Progression</h3>
+
+      <form method="POST" action="{{ url_for('tickets.update_status', ticket_id=ticket.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+          <label class="form-label">Current Status</label>
+          <select name="status" class="form-select" onchange="this.form.submit()">
+            {% if user.is_employee %}
+              <option value="{{ ticket.status }}" selected>{{ ticket.status }}</option>
+              {% if ticket.status != 'Closed' %}
+                <option value="Closed">Close Ticket (Mark Done)</option>
+              {% endif %}
+            {% else %}
+              <option value="Open" {% if ticket.status == 'Open' %}selected{% endif %}>Open</option>
+              <option value="Assigned" {% if ticket.status == 'Assigned' %}selected{% endif %}>Assigned</option>
+              <option value="In Progress" {% if ticket.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+              <option value="Resolved" {% if ticket.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+              <option value="Closed" {% if ticket.status == 'Closed' %}selected{% endif %}>Closed</option>
+            {% endif %}
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <!-- Assignment Controls (Staff Only) -->
+    {% if not user.is_employee %}
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom: 0.85rem;">Assign Support Agent</h3>
+
+        <form method="POST" action="{{ url_for('tickets.assign_ticket', ticket_id=ticket.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="form-group">
+            <label class="form-label">Assigned Agent</label>
+            <select name="agent_id" class="form-select" onchange="this.form.submit()">
+              <option value="">-- Unassigned --</option>
+              {% for ag in agents %}
+                <option value="{{ ag.id }}" {% if ticket.assigned_agent_id == ag.id %}selected{% endif %}>
+                  {{ ag.full_name }} ({{ ag.department or 'Agent' }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </form>
+
+        <!-- Fast Self-Claim -->
+        {% if ticket.assigned_agent_id != user.id %}
+          <form method="POST" action="{{ url_for('tickets.assign_ticket', ticket_id=ticket.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="agent_id" value="{{ user.id }}">
+            <input type="hidden" name="notes" value="Self-assigned">
+            <button type="submit" class="btn btn-secondary btn-sm btn-block">Assign to Me</button>
+          </form>
+        {% endif %}
+      </div>
+
+      <!-- Priority Adjustment (Staff Only) -->
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom: 0.85rem;">Adjust Priority</h3>
+
+        <form method="POST" action="{{ url_for('tickets.update_priority', ticket_id=ticket.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="form-group">
+            <select name="priority" class="form-select" onchange="this.form.submit()">
+              <option value="Low" {% if ticket.priority == 'Low' %}selected{% endif %}>Low (72h res)</option>
+              <option value="Medium" {% if ticket.priority == 'Medium' %}selected{% endif %}>Medium (24h res)</option>
+              <option value="High" {% if ticket.priority == 'High' %}selected{% endif %}>High (8h res)</option>
+              <option value="Critical" {% if ticket.priority == 'Critical' %}selected{% endif %}>Critical (4h res)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+    {% endif %}
+
+    <!-- Audit Activity Trail -->
+    <div class="card">
+      <h3 class="card-title" style="margin-bottom: 0.85rem;">Activity Trail</h3>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 300px; overflow-y: auto;">
+        {% for log in ticket.audit_logs %}
+          <div style="font-size: 0.8rem; border-left: 2px solid var(--primary-border); padding-left: 0.6rem;">
+            <div style="font-weight: 600; color: var(--gray-800);">
+              {{ log.action|replace('_', ' ') }}
+            </div>
+            {% if log.details %}
+              <div style="color: var(--gray-600); font-size: 0.75rem;">{{ log.details }}</div>
+            {% endif %}
+            <div style="color: var(--gray-400); font-size: 0.72rem; margin-top: 0.15rem;">
+              {{ log.user.full_name if log.user else 'System' }} &bull; {{ log.timestamp|timeago }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Reopen Modal -->
+<div class="modal-overlay" id="reopen-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="font-size: 1.15rem; font-weight: 600;">Reopen Ticket {{ ticket.ticket_number }}</h3>
+      <button class="alert-close" data-dismiss="modal">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('tickets.reopen_ticket', ticket_id=ticket.id) }}">
+      <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p style="font-size: 0.88rem; color: var(--gray-600); margin-bottom: 1rem;">
+          Please explain why this issue is being reopened and what remains unresolved:
+        </p>
+        <div class="form-group">
+          <textarea name="reason" class="form-control" rows="4" placeholder="e.g. Issue recurred this morning after reboot..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-warning">Confirm Reopen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Escalate Modal -->
+<div class="modal-overlay" id="escalate-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="font-size: 1.15rem; font-weight: 600;">Escalate Ticket {{ ticket.ticket_number }}</h3>
+      <button class="alert-close" data-dismiss="modal">&times;</button>
+    </div>
+    <form method="POST" action="{{ url_for('tickets.escalate_ticket', ticket_id=ticket.id) }}">
+      <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p style="font-size: 0.88rem; color: var(--gray-600); margin-bottom: 1rem;">
+          Escalating notifies senior staff and marks this ticket with high alert in all dashboards.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Escalation Reason *</label>
+          <textarea name="reason" class="form-control" rows="4" placeholder="Explain the business impact or blocker requiring higher tier intervention..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-danger">Confirm Escalation</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

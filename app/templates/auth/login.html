@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Log In - SupportDesk{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="brand-icon" style="margin: 0 auto 0.75rem; width: 44px; height: 44px; font-size: 1.25rem;">SD</div>
+      <h2 class="auth-title">Sign In to SupportDesk</h2>
+      <p class="auth-subtitle">Enter your corporate credentials or choose a demo role below</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label class="form-label" for="login-email">Email Address</label>
+        <input type="email" id="login-email" name="email" class="form-control" placeholder="name@company.local" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <label class="form-label" for="login-password" style="margin-bottom: 0;">Password</label>
+          <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 0.8rem;">Forgot password?</a>
+        </div>
+        <input type="password" id="login-password" name="password" class="form-control" placeholder="••••••••" required>
+      </div>
+
+      <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="checkbox" id="remember" name="remember" value="1">
+        <label for="remember" style="font-size: 0.85rem; color: var(--gray-600); cursor: pointer;">Remember this session</label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 0.5rem;">Sign In</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.25rem; font-size: 0.88rem; color: var(--gray-600);">
+      Need a customer account? <a href="{{ url_for('auth.register') }}">Create an account</a>
+    </div>
+
+    <!-- Quick Demo Accounts One-Click Fill -->
+    <div class="demo-accounts">
+      <div class="demo-title">⚡ Quick 1-Click Role Login Fill</div>
+      <div class="demo-btns">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="fillLogin('admin@supportdesk.local', 'Admin@123')" title="Administrator">
+          👑 Admin
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="fillLogin('agent.john@supportdesk.local', 'Agent@123')" title="Support Agent">
+          🎧 Agent
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="fillLogin('alice@company.local', 'User@123')" title="Employee/Customer">
+          👤 Employee
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

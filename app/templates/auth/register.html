@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Register Account - SupportDesk{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card" style="max-width: 480px;">
+    <div class="auth-header">
+      <div class="brand-icon" style="margin: 0 auto 0.75rem; width: 44px; height: 44px; font-size: 1.25rem;">SD</div>
+      <h2 class="auth-title">Create an Account</h2>
+      <p class="auth-subtitle">Register to create and track your IT support requests</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.register') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label class="form-label" for="full_name">Full Name *</label>
+        <input type="text" id="full_name" name="full_name" class="form-control" placeholder="e.g. Emily Watson" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Work Email Address *</label>
+        <input type="email" id="email" name="email" class="form-control" placeholder="name@company.local" required>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="form-group">
+          <label class="form-label" for="department">Department</label>
+          <input type="text" id="department" name="department" class="form-control" placeholder="e.g. Marketing, Sales, Dev">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="phone">Phone Number</label>
+          <input type="tel" id="phone" name="phone" class="form-control" placeholder="+1 (555) 000-0000">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="form-group">
+          <label class="form-label" for="password">Password *</label>
+          <input type="password" id="password" name="password" class="form-control" placeholder="Min. 6 chars" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirm_password">Confirm Password *</label>
+          <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top: 0.5rem;">Create Account</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.25rem; font-size: 0.88rem; color: var(--gray-600);">
+      Already have an account? <a href="{{ url_for('auth.login') }}">Log in instead</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
